@@ -2,9 +2,8 @@ from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
 import json
 import os
-import threading
 import telebot
-from bot import bot, TOKEN  # Импортируем также TOKEN
+from bot import bot, TOKEN, handle_message  # Импортируем обработчик сообщений
 
 app = Flask(__name__)
 CORS(app)
@@ -12,34 +11,26 @@ CORS(app)
 # Добавим обработку порта для Render
 port = int(os.environ.get('PORT', 5000))
 
-# Глобальная переменная для отслеживания статуса бота
-bot_thread = None
-bot_started = False
-
-def start_bot():
-    global bot_started
-    if not bot_started:
-        try:
-            print("Запускаем бота...")
-            bot.infinity_polling()
-        except Exception as e:
-            print(f"Ошибка запуска бота: {e}")
-
+# Настраиваем вебхук при первом запросе
 @app.before_first_request
-def init_bot():
-    global bot_thread, bot_started
-    if not bot_started:
-        print("Инициализация бота...")
-        bot_thread = threading.Thread(target=start_bot)
-        bot_thread.daemon = True
-        bot_thread.start()
-        bot_started = True
-        
-        # Отправляем сообщение о запуске
-        try:
-            bot.send_message(1228708306, "🚀 Бот перезапущен и готов к работе!")
-        except Exception as e:
-            print(f"Ошибка отправки сообщения: {e}")
+def set_webhook():
+    url = f"https://shaytan-web.onrender.com/{TOKEN}"  # Замените на ваш URL
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=url)
+        print(f"Вебхук установлен на {url}")
+    except Exception as e:
+        print(f"Ошибка установки вебхука: {e}")
+
+# Обработчик вебхуков от Telegram
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return 'ok', 200
+    return 'error', 403
 
 @app.route('/')
 def serve_html():
