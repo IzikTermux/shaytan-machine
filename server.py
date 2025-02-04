@@ -5,6 +5,7 @@ import os
 import telebot
 import logging
 import sys
+from datetime import datetime, timedelta
 
 # Настройка логирования
 logging.basicConfig(
@@ -116,6 +117,24 @@ def check_webhook():
             "last_error_message": webhook_info.last_error_message
         })
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Добавьте новый роут
+@app.route('/test_special')
+def test_special():
+    try:
+        config = load_config()
+        expires_at = datetime.now() + timedelta(minutes=5)
+        config['special_mode'] = True
+        config['mode_expires_at'] = expires_at.isoformat()
+        save_config(config)
+        return jsonify({
+            "status": "success",
+            "message": "Режим свои включен на 5 минут",
+            "expires_at": expires_at.isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Ошибка теста режима свои: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
