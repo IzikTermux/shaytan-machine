@@ -138,30 +138,43 @@ def special_mode_menu(message):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('special_'))
 def handle_special_mode(call):
-    config = load_config()
-    
-    if call.data == "special_off":
-        config['special_mode'] = False
-        config['mode_expires_at'] = None
+    logger.info(f"Обработка callback_query: {call.data}")
+    try:
+        config = load_config()
+        
+        if call.data == "special_off":
+            logger.info("Выключение режима свои")
+            config['special_mode'] = False
+            config['mode_expires_at'] = None
+            save_config(config)
+            bot.answer_callback_query(call.id, "Режим свои выключен ❌")
+            bot.edit_message_text("Режим свои выключен ❌", 
+                                call.message.chat.id, 
+                                call.message.message_id)
+            return
+
+        minutes = int(call.data.split('_')[1])
+        logger.info(f"Включение режима свои на {minutes} минут")
+        
+        expires_at = datetime.now() + timedelta(minutes=minutes)
+        
+        config['special_mode'] = True
+        config['mode_expires_at'] = expires_at.isoformat()
         save_config(config)
-        bot.answer_callback_query(call.id, "Режим свои выключен ❌")
-        bot.edit_message_text("Режим свои выключен ❌", 
+        
+        bot.answer_callback_query(call.id, f"Режим свои включен на {minutes} минут ✅")
+        bot.edit_message_text(f"Режим свои включен на {minutes} минут ✅\n" +
+                            f"Действует до: {expires_at.strftime('%H:%M:%S')}", 
                             call.message.chat.id, 
                             call.message.message_id)
-        return
-
-    minutes = int(call.data.split('_')[1])
-    expires_at = datetime.now() + timedelta(minutes=minutes)
-    
-    config['special_mode'] = True
-    config['mode_expires_at'] = expires_at.isoformat()
-    save_config(config)
-    
-    bot.answer_callback_query(call.id, f"Режим свои включен на {minutes} минут ✅")
-    bot.edit_message_text(f"Режим свои включен на {minutes} минут ✅\n" +
-                         f"Действует до: {expires_at.strftime('%H:%M:%S')}", 
-                         call.message.chat.id, 
-                         call.message.message_id)
+        logger.info("Режим свои успешно включен")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в обработке callback_query: {e}", exc_info=True)
+        try:
+            bot.answer_callback_query(call.id, "Произошла ошибка ❌")
+        except:
+            pass
 
 @bot.message_handler(commands=['status'])
 def check_status(message):

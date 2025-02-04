@@ -59,11 +59,13 @@ def webhook():
             logger.info(f"Содержимое запроса: {json_string}")
             
             update = telebot.types.Update.de_json(json_string)
-            logger.info(f"Тип обновления: {update.message and 'message' or update.callback_query and 'callback' or 'unknown'}")
             
+            # Добавляем логирование типа обновления
             if update.message:
-                logger.info(f"Текст сообщения: {update.message.text}")
-                
+                logger.info(f"Получено сообщение: {update.message.text}")
+            elif update.callback_query:
+                logger.info(f"Получен callback_query: {update.callback_query.data}")
+            
             # Обрабатываем обновление синхронно
             bot.process_new_updates([update])
             logger.info("Обновление успешно обработано")
@@ -71,6 +73,8 @@ def webhook():
             
         except Exception as e:
             logger.error("Ошибка обработки вебхука", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return str(e), 500
     return 'error', 403
 
