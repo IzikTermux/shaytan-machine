@@ -38,17 +38,21 @@ def set_webhook():
 def webhook():
     if request.headers.get('content-type') == 'application/json':
         try:
-            print("Получен webhook запрос от Telegram")  # Добавляем логирование
+            print("Получен webhook запрос от Telegram")
+            print(f"Headers: {dict(request.headers)}")  # Добавляем вывод заголовков
             json_string = request.get_data().decode('utf-8')
-            print(f"Содержимое запроса: {json_string}")  # Логируем содержимое
+            print(f"Содержимое запроса: {json_string}")
             
             update = telebot.types.Update.de_json(json_string)
-            bot.process_new_updates([update])
+            print(f"Тип обновления: {update.message and 'message' or update.callback_query and 'callback' or 'unknown'}")
             
+            bot.process_new_updates([update])
             print("Обновление успешно обработано")
             return 'ok', 200
         except Exception as e:
             print(f"Ошибка обработки вебхука: {e}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")  # Добавляем полный стек ошибки
             return str(e), 500
     return 'error', 403
 

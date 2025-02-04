@@ -100,15 +100,20 @@ def send_welcome(message):
 @bot.message_handler(commands=['special'])
 @bot.message_handler(func=lambda message: message.text == '🎲 Режим свои')
 def special_mode_menu(message):
-    markup = types.InlineKeyboardMarkup()
-    markup.row(
-        types.InlineKeyboardButton("15 минут", callback_data="special_15"),
-        types.InlineKeyboardButton("30 минут", callback_data="special_30"),
-        types.InlineKeyboardButton("45 минут", callback_data="special_45")
-    )
-    markup.row(types.InlineKeyboardButton("Выключить", callback_data="special_off"))
-    
-    bot.reply_to(message, "Выберите время действия режима:", reply_markup=markup)
+    logger.info(f"Получена команда special от {message.from_user.id}")
+    try:
+        markup = types.InlineKeyboardMarkup()
+        markup.row(
+            types.InlineKeyboardButton("15 минут", callback_data="special_15"),
+            types.InlineKeyboardButton("30 минут", callback_data="special_30"),
+            types.InlineKeyboardButton("45 минут", callback_data="special_45")
+        )
+        markup.row(types.InlineKeyboardButton("Выключить", callback_data="special_off"))
+        
+        bot.reply_to(message, "Выберите время действия режима:", reply_markup=markup)
+        logger.info("Меню режима свои отправлено успешно")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке меню режима свои: {e}")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('special_'))
 def handle_special_mode(call):
@@ -162,19 +167,24 @@ def show_students(message):
 @bot.message_handler(commands=['salt'])
 @bot.message_handler(func=lambda message: message.text == '🎯 Насолить')
 def salt_student_command(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    show_students_btn = types.KeyboardButton('Показать список учеников')
-    special_mode_btn = types.KeyboardButton('🎲 Режим свои')
-    salt_btn = types.KeyboardButton('🎯 Насолить')
-    markup.add(show_students_btn, special_mode_btn, salt_btn)
-    
-    # Устанавливаем состояние ожидания номера
-    waiting_for_number[message.chat.id] = True
-    
-    bot.reply_to(message, 
-                 "Введите номер ученика, которого хотите насолить 😈\n" +
-                 "Этот ученик будет выбран следующим с вероятностью 100%",
-                 reply_markup=markup)
+    logger.info(f"Получена команда salt от {message.from_user.id}")
+    try:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        show_students_btn = types.KeyboardButton('Показать список учеников')
+        special_mode_btn = types.KeyboardButton('🎲 Режим свои')
+        salt_btn = types.KeyboardButton('🎯 Насолить')
+        markup.add(show_students_btn, special_mode_btn, salt_btn)
+        
+        # Устанавливаем состояние ожидания номера
+        waiting_for_number[message.chat.id] = True
+        
+        bot.reply_to(message, 
+                     "Введите номер ученика, которого хотите насолить 😈\n" +
+                     "Этот ученик будет выбран следующим с вероятностью 100%",
+                     reply_markup=markup)
+        logger.info(f"Запрошен номер ученика от {message.from_user.id}")
+    except Exception as e:
+        logger.error(f"Ошибка при запросе номера ученика: {e}")
 
 @bot.message_handler(func=lambda message: message.chat.id in waiting_for_number)
 def handle_student_number(message):
