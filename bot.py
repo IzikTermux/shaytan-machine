@@ -6,9 +6,14 @@ from datetime import datetime, timedelta
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
 import logging
+import sys
 
 # Настраиваем логирование
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
 logger = logging.getLogger(__name__)
 
 # Замените 'YOUR_BOT_TOKEN' на токен вашего бота, полученный от @BotFather
@@ -78,6 +83,11 @@ class BotStates(StatesGroup):
 def send_welcome(message):
     logger.info(f"Получена команда /start от {message.from_user.id}")
     try:
+        # Сначала попробуем отправить простое сообщение
+        test_message = bot.send_message(message.chat.id, "⌛ Загрузка...")
+        logger.info(f"Тестовое сообщение отправлено: {test_message.message_id}")
+        
+        # Если тестовое сообщение отправилось, создаем клавиатуру
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         show_students_btn = types.KeyboardButton('Показать список учеников')
         special_mode_btn = types.KeyboardButton('🎲 Режим свои')
@@ -92,10 +102,23 @@ def send_welcome(message):
             "/status - проверить статус режима\n"
             "/salt - насолить ученика"
         )
-        bot.reply_to(message, welcome_text, reply_markup=markup)
-        logger.info("Приветственное сообщение отправлено успешно")
+        
+        # Отправляем основное сообщение
+        main_message = bot.send_message(
+            message.chat.id, 
+            welcome_text, 
+            reply_markup=markup,
+            parse_mode='HTML'
+        )
+        logger.info(f"Основное сообщение отправлено: {main_message.message_id}")
+        
     except Exception as e:
-        logger.error(f"Ошибка при обработке команды /start: {e}")
+        logger.error(f"Ошибка при обработке команды /start: {e}", exc_info=True)
+        # Пробуем отправить сообщение об ошибке
+        try:
+            bot.send_message(message.chat.id, "❌ Произошла ошибка при обработке команды")
+        except Exception as send_error:
+            logger.error(f"Не удалось отправить сообщение об ошибке: {send_error}")
 
 @bot.message_handler(commands=['special'])
 @bot.message_handler(func=lambda message: message.text == '🎲 Режим свои')

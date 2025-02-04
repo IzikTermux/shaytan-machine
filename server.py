@@ -4,12 +4,22 @@ import json
 import os
 import telebot
 from bot import bot, TOKEN
+import logging
+import sys
 
 app = Flask(__name__)
 CORS(app)
 
 # Добавим обработку порта для Render
 port = int(os.environ.get('PORT', 10000))
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 # Настраиваем вебхук при первом запросе
 @app.before_first_request
@@ -38,21 +48,22 @@ def set_webhook():
 def webhook():
     if request.headers.get('content-type') == 'application/json':
         try:
-            print("Получен webhook запрос от Telegram")
-            print(f"Headers: {dict(request.headers)}")  # Добавляем вывод заголовков
+            logger.info("Получен webhook запрос от Telegram")
             json_string = request.get_data().decode('utf-8')
-            print(f"Содержимое запроса: {json_string}")
+            logger.info(f"Содержимое запроса: {json_string}")
             
             update = telebot.types.Update.de_json(json_string)
-            print(f"Тип обновления: {update.message and 'message' or update.callback_query and 'callback' or 'unknown'}")
+            logger.info(f"Тип обновления: {update.message and 'message' or update.callback_query and 'callback' or 'unknown'}")
             
+            if update.message:
+                logger.info(f"Текст сообщения: {update.message.text}")
+                
             bot.process_new_updates([update])
-            print("Обновление успешно обработано")
+            logger.info("Обновление успешно обработано")
             return 'ok', 200
+            
         except Exception as e:
-            print(f"Ошибка обработки вебхука: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")  # Добавляем полный стек ошибки
+            logger.error("Ошибка обработки вебхука", exc_info=True)
             return str(e), 500
     return 'error', 403
 
