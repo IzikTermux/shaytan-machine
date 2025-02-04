@@ -15,25 +15,54 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Функции для работы с конфигурацией
+# Изменим функции работы с конфигурацией
+CONFIG_FILE = 'config.json'
+
 def load_config():
     try:
-        with open('config.json', 'r') as f:
+        if not os.path.exists(CONFIG_FILE):
+            default_config = {
+                "special_mode": False,
+                "special_students": {},
+                "mode_expires_at": None,
+                "salted_student": None
+            }
+            save_config(default_config)
+            return default_config
+            
+        with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
-            # Проверяем, не истекло ли время действия режима
-            if config['mode_expires_at']:
-                expires_at = datetime.fromisoformat(config['mode_expires_at'])
-                if datetime.now() > expires_at:
-                    config['special_mode'] = False
-                    config['mode_expires_at'] = None
-                    save_config(config)
-            return config
-    except:
-        return {"special_mode": False, "special_students": {}, "mode_expires_at": None}
+            
+        # Проверяем, не истекло ли время действия режима
+        if config.get('mode_expires_at'):
+            expires_at = datetime.fromisoformat(config['mode_expires_at'])
+            if datetime.now() > expires_at:
+                config['special_mode'] = False
+                config['mode_expires_at'] = None
+                save_config(config)
+                
+        return config
+    except Exception as e:
+        logger.error(f"Ошибка загрузки конфига: {e}", exc_info=True)
+        return {
+            "special_mode": False,
+            "special_students": {},
+            "mode_expires_at": None,
+            "salted_student": None
+        }
 
 def save_config(config):
-    with open('config.json', 'w') as f:
-        json.dump(config, f, indent=4)
+    try:
+        # Создаем директорию, если её нет
+        os.makedirs(os.path.dirname(CONFIG_FILE) or '.', exist_ok=True)
+        
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=4)
+        logger.info(f"Конфиг сохранен: {config}")
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка сохранения конфига: {e}", exc_info=True)
+        return False
 
 # Создаем бота
 TOKEN = '7512260695:AAGRESRxQglZSb0mTFQri6ZFOha8PakUstA'
@@ -47,10 +76,6 @@ port = int(os.environ.get('PORT', 10000))
 
 # Импортируем обработчики после создания бота
 from bot import *
-
-# Инициализируем config.json если его нет
-if not os.path.exists('config.json'):
-    save_config({"special_mode": False, "special_students": {}, "mode_expires_at": None})
 
 # Настраиваем вебхук при первом запросе
 @app.before_first_request
@@ -109,14 +134,20 @@ def serve_html():
 
 @app.route('/config.json')
 def serve_config():
-    return send_file('config.json')
+    config = load_config()
+    return jsonify(config)
 
 @app.route('/update_config', methods=['POST'])
 def update_config():
-    config = request.json
-    with open('config.json', 'w') as f:
-        json.dump(config, f, indent=4)
-    return jsonify({"success": True})
+    try:
+        config = request.json
+        if save_config(config):
+            return jsonify({"success": True, "config": config})
+        else:
+            return jsonify({"success": False, "error": "Failed to save config"}), 500
+    except Exception as e:
+        logger.error(f"Ошибка обновления конфига: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # Добавим тестовый роут
 @app.route('/test')
@@ -143,30 +174,47 @@ def check_webhook():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Добавьте новый роут
+# Обновим тестовый роут
 @app.route('/test_special')
 def test_special():
     try:
         config = load_config()
         expires_at = datetime.now() + timedelta(minutes=5)
+        
         config['special_mode'] = True
         config['mode_expires_at'] = expires_at.isoformat()
-        save_config(config)
-        logger.info(f"Режим свои включен до {expires_at}")
         
-        # Проверяем, что конфиг сохранился
-        saved_config = load_config()
-        logger.info(f"Сохраненный конфиг: {saved_config}")
-        
-        return jsonify({
-            "status": "success",
-            "message": "Режим свои включен на 5 минут",
-            "expires_at": expires_at.isoformat(),
-            "config": saved_config
-        })
+        if save_config(config):
+            logger.info(f"Режим свои включен до {expires_at}")
+            return jsonify({
+                "status": "success",
+                "message": "Режим свои включен на 5 минут",
+                "expires_at": expires_at.isoformat(),
+                "config": load_config()  # Перезагружаем конфиг для проверки
+            })
+        else:
+            return jsonify({"status": "error", "message": "Failed to save config"}), 500
+            
     except Exception as e:
         logger.error(f"Ошибка теста режима свои: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+@app.before_first_request
+def check_permissions():
+    try:
+        # Проверяем права на запись
+        test_file = 'test_write.tmp'
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        logger.info("Права на запись есть")
+        
+        # Проверяем текущую директорию
+        logger.info(f"Текущая директория: {os.getcwd()}")
+        logger.info(f"Содержимое директории: {os.listdir()}")
+        
+    except Exception as e:
+        logger.error(f"Проблема с правами доступа: {e}", exc_info=True)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
