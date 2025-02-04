@@ -3,15 +3,8 @@ from flask_cors import CORS
 import json
 import os
 import telebot
-from bot import bot, TOKEN
 import logging
 import sys
-
-app = Flask(__name__)
-CORS(app)
-
-# Добавим обработку порта для Render
-port = int(os.environ.get('PORT', 10000))
 
 # Настройка логирования
 logging.basicConfig(
@@ -20,6 +13,19 @@ logging.basicConfig(
     stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
+
+# Создаем бота здесь, а не импортируем из bot.py
+TOKEN = '7512260695:AAGRESRxQglZSb0mTFQri6ZFOha8PakUstA'
+bot = telebot.TeleBot(TOKEN, threaded=False)  # Отключаем многопоточность
+
+app = Flask(__name__)
+CORS(app)
+
+# Добавим обработку порта для Render
+port = int(os.environ.get('PORT', 10000))
+
+# Импортируем обработчики после создания бота
+from bot import *
 
 # Настраиваем вебхук при первом запросе
 @app.before_first_request
@@ -58,6 +64,7 @@ def webhook():
             if update.message:
                 logger.info(f"Текст сообщения: {update.message.text}")
                 
+            # Обрабатываем обновление синхронно
             bot.process_new_updates([update])
             logger.info("Обновление успешно обработано")
             return 'ok', 200
@@ -89,6 +96,7 @@ def test():
         bot.send_message(1228708306, "🔄 Тест соединения")
         return "OK", 200
     except Exception as e:
+        logger.error(f"Ошибка теста: {e}", exc_info=True)
         return str(e), 500
 
 # Добавим новый роут для проверки вебхука

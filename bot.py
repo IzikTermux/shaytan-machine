@@ -1,3 +1,4 @@
+from server import bot
 import telebot
 from telebot import types
 import json
@@ -16,10 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Замените 'YOUR_BOT_TOKEN' на токен вашего бота, полученный от @BotFather
-TOKEN = '7512260695:AAGRESRxQglZSb0mTFQri6ZFOha8PakUstA'
 state_storage = StateMemoryStorage()
-bot = telebot.TeleBot(TOKEN, state_storage=state_storage)
 
 waiting_for_number = {}  # Словарь для хранения состояний пользователей
 
