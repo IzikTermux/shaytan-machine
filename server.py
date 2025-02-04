@@ -9,7 +9,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Добавим обработку порта для Render
-port = int(os.environ.get('PORT', 5000))
+port = int(os.environ.get('PORT', 10000))
 
 # Настраиваем вебхук при первом запросе
 @app.before_first_request
@@ -18,11 +18,18 @@ def set_webhook():
     WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://shaytan-web.onrender.com')
     url = f"{WEBHOOK_URL}/{TOKEN}"
     try:
+        print("Начинаем настройку вебхука...")  # Добавляем логирование
         bot.remove_webhook()
         bot.set_webhook(url=url)
-        # Отправляем сообщение о запуске
-        bot.send_message(1228708306, f"🚀 Бот перезапущен\nWebhook URL: {url}")
         print(f"Вебхук установлен на {url}")
+        
+        # Пробуем отправить тестовое сообщение
+        try:
+            bot.send_message(1228708306, f"🚀 Бот перезапущен\nWebhook URL: {url}")
+            print("Тестовое сообщение отправлено")
+        except Exception as e:
+            print(f"Ошибка отправки тестового сообщения: {e}")
+            
     except Exception as e:
         print(f"Ошибка установки вебхука: {e}")
 
@@ -31,13 +38,17 @@ def set_webhook():
 def webhook():
     if request.headers.get('content-type') == 'application/json':
         try:
+            print("Получен webhook запрос от Telegram")  # Добавляем логирование
             json_string = request.get_data().decode('utf-8')
+            print(f"Содержимое запроса: {json_string}")  # Логируем содержимое
+            
             update = telebot.types.Update.de_json(json_string)
             bot.process_new_updates([update])
-            print(f"Получено обновление: {json_string}")  # Добавляем логирование
+            
+            print("Обновление успешно обработано")
             return 'ok', 200
         except Exception as e:
-            print(f"Ошибка обработки вебхука: {e}")  # Добавляем логирование ошибок
+            print(f"Ошибка обработки вебхука: {e}")
             return str(e), 500
     return 'error', 403
 
@@ -55,6 +66,15 @@ def update_config():
     with open('config.json', 'w') as f:
         json.dump(config, f, indent=4)
     return jsonify({"success": True})
+
+# Добавим тестовый роут
+@app.route('/test')
+def test():
+    try:
+        bot.send_message(1228708306, "🔄 Тест соединения")
+        return "OK", 200
+    except Exception as e:
+        return str(e), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
