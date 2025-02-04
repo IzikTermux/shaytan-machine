@@ -5,6 +5,11 @@ import time
 from datetime import datetime, timedelta
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Замените 'YOUR_BOT_TOKEN' на токен вашего бота, полученный от @BotFather
 TOKEN = '7512260695:AAGRESRxQglZSb0mTFQri6ZFOha8PakUstA'
@@ -71,21 +76,26 @@ class BotStates(StatesGroup):
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    show_students_btn = types.KeyboardButton('Показать список учеников')
-    special_mode_btn = types.KeyboardButton('🎲 Режим свои')
-    salt_btn = types.KeyboardButton('🎯 Насолить')
-    markup.add(show_students_btn, special_mode_btn, salt_btn)
-    
-    welcome_text = (
-        "👋 Привет! Я бот для управления шайтан-машиной.\n\n"
-        "Доступные команды:\n"
-        "/students - показать список учеников\n"
-        "/special - включить режим свои\n"
-        "/status - проверить статус режима\n"
-        "/salt - насолить ученика"
-    )
-    bot.reply_to(message, welcome_text, reply_markup=markup)
+    logger.info(f"Получена команда /start от {message.from_user.id}")
+    try:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        show_students_btn = types.KeyboardButton('Показать список учеников')
+        special_mode_btn = types.KeyboardButton('🎲 Режим свои')
+        salt_btn = types.KeyboardButton('🎯 Насолить')
+        markup.add(show_students_btn, special_mode_btn, salt_btn)
+        
+        welcome_text = (
+            "👋 Привет! Я бот для управления шайтан-машиной.\n\n"
+            "Доступные команды:\n"
+            "/students - показать список учеников\n"
+            "/special - включить режим свои\n"
+            "/status - проверить статус режима\n"
+            "/salt - насолить ученика"
+        )
+        bot.reply_to(message, welcome_text, reply_markup=markup)
+        logger.info("Приветственное сообщение отправлено успешно")
+    except Exception as e:
+        logger.error(f"Ошибка при обработке команды /start: {e}")
 
 @bot.message_handler(commands=['special'])
 @bot.message_handler(func=lambda message: message.text == '🎲 Режим свои')

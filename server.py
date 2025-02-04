@@ -76,5 +76,20 @@ def test():
     except Exception as e:
         return str(e), 500
 
+# Добавим новый роут для проверки вебхука
+@app.route('/check_webhook')
+def check_webhook():
+    try:
+        webhook_info = bot.get_webhook_info()
+        return jsonify({
+            "webhook_url": webhook_info.url,
+            "has_custom_certificate": webhook_info.has_custom_certificate,
+            "pending_update_count": webhook_info.pending_update_count,
+            "last_error_date": webhook_info.last_error_date,
+            "last_error_message": webhook_info.last_error_message
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
