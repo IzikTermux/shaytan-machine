@@ -3,7 +3,7 @@ from flask_cors import CORS
 import json
 import os
 import telebot
-from bot import bot, TOKEN, handle_message  # Импортируем обработчик сообщений
+from bot import bot, TOKEN  # Убираем handle_message
 
 app = Flask(__name__)
 CORS(app)
