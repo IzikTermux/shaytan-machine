@@ -1,11 +1,6 @@
 {
     "special_mode": false,
-    "special_students": {
-        "9": 0.2,
-        "11": 0.2,
-        "15": 0.2,
-        "25": 0.2
-    },
+    "special_students": {},
     "mode_expires_at": null,
     "salted_student": null
 }

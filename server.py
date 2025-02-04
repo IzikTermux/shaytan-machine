@@ -15,9 +15,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Создаем бота здесь, а не импортируем из bot.py
+# Функции для работы с конфигурацией
+def load_config():
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+            # Проверяем, не истекло ли время действия режима
+            if config['mode_expires_at']:
+                expires_at = datetime.fromisoformat(config['mode_expires_at'])
+                if datetime.now() > expires_at:
+                    config['special_mode'] = False
+                    config['mode_expires_at'] = None
+                    save_config(config)
+            return config
+    except:
+        return {"special_mode": False, "special_students": {}, "mode_expires_at": None}
+
+def save_config(config):
+    with open('config.json', 'w') as f:
+        json.dump(config, f, indent=4)
+
+# Создаем бота
 TOKEN = '7512260695:AAGRESRxQglZSb0mTFQri6ZFOha8PakUstA'
-bot = telebot.TeleBot(TOKEN, threaded=False)  # Отключаем многопоточность
+bot = telebot.TeleBot(TOKEN, threaded=False)
 
 app = Flask(__name__)
 CORS(app)
@@ -27,6 +47,10 @@ port = int(os.environ.get('PORT', 10000))
 
 # Импортируем обработчики после создания бота
 from bot import *
+
+# Инициализируем config.json если его нет
+if not os.path.exists('config.json'):
+    save_config({"special_mode": False, "special_students": {}, "mode_expires_at": None})
 
 # Настраиваем вебхук при первом запросе
 @app.before_first_request
@@ -128,10 +152,17 @@ def test_special():
         config['special_mode'] = True
         config['mode_expires_at'] = expires_at.isoformat()
         save_config(config)
+        logger.info(f"Режим свои включен до {expires_at}")
+        
+        # Проверяем, что конфиг сохранился
+        saved_config = load_config()
+        logger.info(f"Сохраненный конфиг: {saved_config}")
+        
         return jsonify({
             "status": "success",
             "message": "Режим свои включен на 5 минут",
-            "expires_at": expires_at.isoformat()
+            "expires_at": expires_at.isoformat(),
+            "config": saved_config
         })
     except Exception as e:
         logger.error(f"Ошибка теста режима свои: {e}", exc_info=True)
