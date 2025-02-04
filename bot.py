@@ -211,4 +211,4 @@ def handle_student_number(message):
 # Запускаем бота
 if __name__ == '__main__':
     print("Бот запущен...")
-    bot.infinity_polling()
+    # Убираем bot.infinity_polling(), так как бот будет запускаться из server.py

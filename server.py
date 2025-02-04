@@ -2,6 +2,9 @@ from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
 import json
 import os
+import threading
+import telebot
+from bot import bot  # Импортируем бота из bot.py
 
 app = Flask(__name__)
 CORS(app)
@@ -24,5 +27,14 @@ def update_config():
         json.dump(config, f, indent=4)
     return jsonify({"success": True})
 
+# Функция для запуска бота в отдельном потоке
+def run_bot():
+    bot.infinity_polling()
+
 if __name__ == '__main__':
+    # Запускаем бота в отдельном потоке
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    
+    # Запускаем веб-сервер
     app.run(host='0.0.0.0', port=port)

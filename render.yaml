@@ -3,16 +3,7 @@ services:
     name: shaytan-web
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn server:app
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.9.0
-
-  - type: worker
-    name: shaytan-bot
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
+    startCommand: gunicorn --worker-class gthread --threads 8 server:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0 
