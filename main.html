@@ -801,31 +801,6 @@
             }, 50);
         }
 
-        // Упростим функцию checkSpecialMode
-        async function checkSpecialMode() {
-            try {
-                const response = await fetch('/config.json');
-                const config = await response.json();
-                console.log('Текущая конфигурация:', config);
-                
-                if (config.special_mode && config.mode_expires_at) {
-                    const expiresAt = new Date(config.mode_expires_at + 'Z');
-                    const now = new Date();
-                    
-                    console.log('Время окончания:', expiresAt);
-                    console.log('Текущее время:', now);
-                    
-                    if (now < expiresAt) {
-                        return true;
-                    }
-                }
-                return false;
-            } catch (error) {
-                console.error('Ошибка при проверке режима:', error);
-                return false;
-            }
-        }
-
         // Обновим обработчик кнопки случайного выбора
         randomButton.addEventListener('click', async function() {
             const students = document.querySelectorAll('.student-item:not(.absent)');
@@ -849,56 +824,76 @@
 
             let finalStudents = availableStudents;
 
-            // Проверяем наличие "насоленного" ученика
-            const config = await fetch('/config.json').then(r => r.json());
-            if (config.salted_student) {
-                // Ищем насоленного ученика среди доступных
-                const saltedStudent = availableStudents.find(student => 
-                    student.querySelector('.student-number').textContent === config.salted_student
-                );
-                
-                if (saltedStudent) {
-                    console.log('Найден насоленный ученик:', config.salted_student);
-                    finalStudents = [saltedStudent];
-                }
-            } else if (config.special_mode) {
-                // Получаем номера исключенных учеников
-                const excludedNumbers = Array.from(document.querySelectorAll('.excluded-item'))
-                    .map(item => item.getAttribute('data-number'));
-                
-                // Фильтруем доступных учеников
-                finalStudents = availableStudents.filter(student => {
-                    const number = student.querySelector('.student-number').textContent;
-                    const isExcluded = excludedNumbers.includes(number);
-                    if (isExcluded) {
-                        console.log(`Исключаем ученика номер ${number}`);
+            try {
+                // Получаем конфиг
+                const response = await fetch('/config.json');
+                const config = await response.json();
+                console.log('Получен конфиг:', config);
+
+                // Проверяем режим "насолить"
+                if (config.salted_student) {
+                    const saltedStudent = availableStudents.find(student => 
+                        student.querySelector('.student-number').textContent === config.salted_student
+                    );
+                    
+                    if (saltedStudent) {
+                        console.log('Найден насоленный ученик:', config.salted_student);
+                        finalStudents = [saltedStudent];
                     }
-                    return !isExcluded;
-                });
-                
-                // Если после фильтрации никого не осталось, используем всех
-                if (finalStudents.length === 0) {
-                    console.log('После фильтрации не осталось учеников, используем всех доступных');
-                    finalStudents = availableStudents;
+                } 
+                // Проверяем режим "свои"
+                else if (config.special_mode && config.mode_expires_at) {
+                    const expiresAt = new Date(config.mode_expires_at + 'Z');
+                    const now = new Date();
+                    
+                    if (now < expiresAt) {
+                        console.log('Режим свои активен');
+                        // Получаем номера исключенных учеников
+                        const excludedNumbers = Array.from(document.querySelectorAll('.excluded-item'))
+                            .map(item => item.getAttribute('data-number'));
+                        
+                        console.log('Исключенные номера:', excludedNumbers);
+                        
+                        // Фильтруем доступных учеников
+                        finalStudents = availableStudents.filter(student => {
+                            const number = student.querySelector('.student-number').textContent;
+                            const isExcluded = excludedNumbers.includes(number);
+                            if (isExcluded) {
+                                console.log(`Исключаем ученика номер ${number}`);
+                            }
+                            return !isExcluded;
+                        });
+                        
+                        // Если после фильтрации никого не осталось, используем всех
+                        if (finalStudents.length === 0) {
+                            console.log('После фильтрации не осталось учеников, используем всех доступных');
+                            finalStudents = availableStudents;
+                        }
+                    } else {
+                        console.log('Время режима свои истекло');
+                    }
                 }
+
+                console.log(`Доступно учеников: ${finalStudents.length}`);
+                
+                // Выбираем случайного ученика
+                const randomIndex = Math.floor(Math.random() * finalStudents.length);
+                const selectedStudent = finalStudents[randomIndex];
+
+                const number = selectedStudent.querySelector('.student-number').textContent;
+                const name = selectedStudent.querySelector('.student-name').textContent;
+                const surname = selectedStudent.querySelector('.student-surname').textContent;
+                
+                console.log(`Выбран ученик: ${number}. ${name} ${surname}`);
+                
+                selectedStudents.add(number);
+                selectedStudent.classList.add('selected');
+                
+                animateText(`${name} ${surname}`);
+            } catch (error) {
+                console.error('Ошибка при выборе ученика:', error);
+                animateText('Произошла ошибка!');
             }
-
-            console.log(`Доступно учеников: ${finalStudents.length}`);
-            
-            // Выбираем случайного ученика
-            const randomIndex = Math.floor(Math.random() * finalStudents.length);
-            const selectedStudent = finalStudents[randomIndex];
-
-            const number = selectedStudent.querySelector('.student-number').textContent;
-            const name = selectedStudent.querySelector('.student-name').textContent;
-            const surname = selectedStudent.querySelector('.student-surname').textContent;
-            
-            console.log(`Выбран ученик: ${number}. ${name} ${surname}`);
-            
-            selectedStudents.add(number);
-            selectedStudent.classList.add('selected');
-            
-            animateText(`${name} ${surname}`);
         });
 
         // Добавьте функцию removeFromExcluded
