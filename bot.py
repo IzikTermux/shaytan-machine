@@ -240,7 +240,17 @@ def handle_student_number(message):
         
         print(f"Номер {number} найден, обновляем конфиг")  # Отладка
         config = load_config()
+        # Сохраняем текущие настройки режима "свои"
+        special_mode = config.get('special_mode', False)
+        mode_expires_at = config.get('mode_expires_at', None)
+        
+        # Обновляем только поле salted_student
         config['salted_student'] = number
+        
+        # Восстанавливаем настройки режима "свои"
+        config['special_mode'] = special_mode
+        config['mode_expires_at'] = mode_expires_at
+        
         save_config(config)
         
         # Находим имя ученика
