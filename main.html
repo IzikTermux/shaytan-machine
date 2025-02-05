@@ -803,32 +803,33 @@
 
         // Обновим обработчик кнопки случайного выбора
         randomButton.addEventListener('click', async function() {
-            const students = document.querySelectorAll('.student-item:not(.absent)');
-            const availableStudents = Array.from(students).filter(student => {
-                const number = student.querySelector('.student-number').textContent;
-                return !selectedStudents.has(number);
-            });
-
-            if (availableStudents.length === 0) {
-                if (students.length === 0) {
-                    animateText('Нет доступных учеников!');
-                } else {
-                    animateText('Все ученики опрошены!');
-                    selectedStudents.clear();
-                    document.querySelectorAll('.student-item').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                }
-                return;
-            }
-
-            let finalStudents = availableStudents;
-
             try {
                 // Получаем конфиг
                 const response = await fetch('/config.json');
                 const config = await response.json();
                 console.log('Получен конфиг:', config);
+
+                // Получаем список доступных учеников
+                const students = document.querySelectorAll('.student-item:not(.absent)');
+                const availableStudents = Array.from(students).filter(student => {
+                    const number = student.querySelector('.student-number').textContent;
+                    return !selectedStudents.has(number);
+                });
+
+                if (availableStudents.length === 0) {
+                    if (students.length === 0) {
+                        animateText('Нет доступных учеников!');
+                    } else {
+                        animateText('Все ученики опрошены!');
+                        selectedStudents.clear();
+                        document.querySelectorAll('.student-item').forEach(item => {
+                            item.classList.remove('selected');
+                        });
+                    }
+                    return;
+                }
+
+                let finalStudents = availableStudents;
 
                 // Проверяем режим "насолить"
                 if (config.salted_student) {
@@ -849,9 +850,7 @@
                     if (now < expiresAt) {
                         console.log('Режим свои активен');
                         // Получаем номера исключенных учеников
-                        const excludedNumbers = Array.from(document.querySelectorAll('.excluded-item'))
-                            .map(item => item.getAttribute('data-number'));
-                        
+                        const excludedNumbers = ["11", "15", "25", "9"];
                         console.log('Исключенные номера:', excludedNumbers);
                         
                         // Фильтруем доступных учеников
