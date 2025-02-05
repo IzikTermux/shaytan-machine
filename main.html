@@ -801,18 +801,14 @@
             }, 50);
         }
 
-        // Обновим функцию checkSpecialMode
+        // Упростим функцию checkSpecialMode
         async function checkSpecialMode() {
             try {
                 const response = await fetch('/config.json');
                 const config = await response.json();
                 console.log('Текущая конфигурация:', config);
                 
-                const specialModeDiv = document.getElementById('specialMode');
-                const timerSpan = document.getElementById('specialModeTimer');
-                
                 if (config.special_mode && config.mode_expires_at) {
-                    // Преобразуем строку в объект Date с учетом UTC
                     const expiresAt = new Date(config.mode_expires_at + 'Z');
                     const now = new Date();
                     
@@ -820,46 +816,15 @@
                     console.log('Текущее время:', now);
                     
                     if (now < expiresAt) {
-                        specialModeDiv.style.display = 'flex';
-                        updateTimer(expiresAt);
                         return true;
-                    } else {
-                        console.log('Время режима истекло');
                     }
                 }
-                
-                specialModeDiv.style.display = 'none';
                 return false;
             } catch (error) {
                 console.error('Ошибка при проверке режима:', error);
                 return false;
             }
         }
-
-        // Обновим функцию updateTimer
-        function updateTimer(expiresAt) {
-            const timerSpan = document.getElementById('specialModeTimer');
-            const now = new Date();
-            const diff = expiresAt - now;
-            
-            if (diff <= 0) {
-                document.getElementById('specialMode').style.display = 'none';
-                return;
-            }
-            
-            const minutes = Math.floor(diff / 60000);
-            const seconds = Math.floor((diff % 60000) / 1000);
-            timerSpan.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-            
-            setTimeout(() => updateTimer(expiresAt), 1000);
-        }
-
-        // Добавим немедленную проверку при загрузке
-        document.addEventListener('DOMContentLoaded', () => {
-            checkSpecialMode();
-            // Периодическая проверка каждые 5 секунд
-            setInterval(checkSpecialMode, 5000);
-        });
 
         // Обновим обработчик кнопки случайного выбора
         randomButton.addEventListener('click', async function() {
