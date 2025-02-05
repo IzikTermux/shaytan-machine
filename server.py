@@ -16,8 +16,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Изменим функции работы с конфигурацией
-CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'config.json')
+# Изменим путь к конфигу на абсолютный путь в /tmp
+CONFIG_FILE = '/tmp/config.json'
+
+def save_config(config):
+    try:
+        logger.info(f"Сохраняем конфиг в {CONFIG_FILE}")
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=4)
+        logger.info(f"Конфиг сохранен: {config}")
+        
+        # Проверяем, что файл создался
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                saved_config = json.load(f)
+            logger.info(f"Прочитанный конфиг: {saved_config}")
+            return True
+        else:
+            logger.error("Файл конфига не создался")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Ошибка сохранения конфига: {e}", exc_info=True)
+        return False
 
 def load_config():
     try:
@@ -56,28 +77,6 @@ def load_config():
             "mode_expires_at": None,
             "salted_student": None
         }
-
-def save_config(config):
-    try:
-        logger.info(f"Сохраняем конфиг в {CONFIG_FILE}")
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=4)
-        logger.info(f"Конфиг сохранен: {config}")
-        
-        # Проверяем, что файл создался
-        if os.path.exists(CONFIG_FILE):
-            logger.info(f"Файл конфига существует, размер: {os.path.getsize(CONFIG_FILE)}")
-            with open(CONFIG_FILE, 'r') as f:
-                saved_config = json.load(f)
-            logger.info(f"Прочитанный конфиг: {saved_config}")
-            return True
-        else:
-            logger.error("Файл конфига не создался")
-            return False
-            
-    except Exception as e:
-        logger.error(f"Ошибка сохранения конфига: {e}", exc_info=True)
-        return False
 
 # Создаем бота
 TOKEN = '7512260695:AAGRESRxQglZSb0mTFQri6ZFOha8PakUstA'
