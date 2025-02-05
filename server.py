@@ -191,7 +191,8 @@ def check_permissions():
 def get_moscow_time():
     # Москва UTC+3
     moscow_tz = timezone(timedelta(hours=3))
-    return datetime.now(moscow_tz)
+    now = datetime.now(timezone.utc)  # Получаем время в UTC
+    return now.astimezone(moscow_tz)  # Конвертируем в московское время
 
 # Обновим обработчик callback_query
 @bot.callback_query_handler(func=lambda call: call.data.startswith('special_'))
@@ -216,18 +217,20 @@ def handle_special_mode(call):
         minutes = int(call.data.split('_')[1])
         logger.info(f"Включение режима свои на {minutes} минут")
         
-        # Используем московское время
-        now = get_moscow_time()
+        # Используем UTC время для сохранения
+        now = datetime.now(timezone.utc)
         expires_at = now + timedelta(minutes=minutes)
         
         config['special_mode'] = True
         config['mode_expires_at'] = expires_at.isoformat()
         
         if save_config(config):
+            # Для отображения используем московское время
+            moscow_expires = expires_at.astimezone(timezone(timedelta(hours=3)))
             bot.answer_callback_query(call.id, f"Режим свои включен на {minutes} минут ✅")
             bot.edit_message_text(
                 f"Режим свои включен на {minutes} минут ✅\n" +
-                f"Действует до: {expires_at.strftime('%H:%M:%S (МСК)')}", 
+                f"Действует до: {moscow_expires.strftime('%H:%M:%S (МСК)')}", 
                 call.message.chat.id, 
                 call.message.message_id
             )
