@@ -16,59 +16,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Изменим путь к конфигу на абсолютный путь в /tmp
-CONFIG_FILE = '/tmp/config.json'
+# Добавим глобальный конфиг в память
+GLOBAL_CONFIG = {
+    "special_mode": False,
+    "special_students": {},
+    "mode_expires_at": None,
+    "salted_student": None
+}
 
 def save_config(config):
     try:
-        logger.info(f"Сохраняем конфиг в {CONFIG_FILE}")
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=4)
-        logger.info(f"Конфиг сохранен: {config}")
-        
-        # Проверяем, что файл создался
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f:
-                saved_config = json.load(f)
-            logger.info(f"Прочитанный конфиг: {saved_config}")
-            return True
-        else:
-            logger.error("Файл конфига не создался")
-            return False
-            
+        logger.info(f"Сохраняем конфиг в память: {config}")
+        global GLOBAL_CONFIG
+        GLOBAL_CONFIG.update(config)
+        return True
     except Exception as e:
         logger.error(f"Ошибка сохранения конфига: {e}", exc_info=True)
         return False
 
 def load_config():
     try:
-        logger.info(f"Загружаем конфиг из {CONFIG_FILE}")
-        if not os.path.exists(CONFIG_FILE):
-            logger.info("Файл конфига не существует, создаем новый")
-            default_config = {
-                "special_mode": False,
-                "special_students": {},
-                "mode_expires_at": None,
-                "salted_student": None
-            }
-            if save_config(default_config):
-                return default_config
-            else:
-                raise Exception("Не удалось создать конфиг")
-            
-        with open(CONFIG_FILE, 'r') as f:
-            config = json.load(f)
-            logger.info(f"Загружен конфиг: {config}")
-            
+        logger.info(f"Загружаем конфиг из памяти: {GLOBAL_CONFIG}")
+        global GLOBAL_CONFIG
+        
         # Проверяем, не истекло ли время действия режима
-        if config.get('mode_expires_at'):
-            expires_at = datetime.fromisoformat(config['mode_expires_at'])
+        if GLOBAL_CONFIG.get('mode_expires_at'):
+            expires_at = datetime.fromisoformat(GLOBAL_CONFIG['mode_expires_at'])
             if datetime.now() > expires_at:
-                config['special_mode'] = False
-                config['mode_expires_at'] = None
-                save_config(config)
+                GLOBAL_CONFIG['special_mode'] = False
+                GLOBAL_CONFIG['mode_expires_at'] = None
                 
-        return config
+        return GLOBAL_CONFIG
     except Exception as e:
         logger.error(f"Ошибка загрузки конфига: {e}", exc_info=True)
         return {
@@ -149,6 +127,7 @@ def serve_html():
 @app.route('/config.json')
 def serve_config():
     config = load_config()
+    logger.info(f"Отдаем конфиг: {config}")
     return jsonify(config)
 
 @app.route('/update_config', methods=['POST'])
@@ -156,7 +135,7 @@ def update_config():
     try:
         config = request.json
         if save_config(config):
-            return jsonify({"success": True, "config": config})
+            return jsonify({"success": True, "config": load_config()})
         else:
             return jsonify({"success": False, "error": "Failed to save config"}), 500
     except Exception as e:
