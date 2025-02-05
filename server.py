@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Добавим глобальный конфиг в память
+# Глобальный конфиг
 GLOBAL_CONFIG = {
     "special_mode": False,
     "special_students": {},
@@ -26,9 +26,10 @@ GLOBAL_CONFIG = {
 
 def save_config(config):
     try:
-        logger.info(f"Сохраняем конфиг в память: {config}")
         global GLOBAL_CONFIG
+        logger.info(f"Сохраняем конфиг в память: {config}")
         GLOBAL_CONFIG.update(config)
+        logger.info(f"Конфиг после обновления: {GLOBAL_CONFIG}")
         return True
     except Exception as e:
         logger.error(f"Ошибка сохранения конфига: {e}", exc_info=True)
@@ -36,8 +37,8 @@ def save_config(config):
 
 def load_config():
     try:
-        logger.info(f"Загружаем конфиг из памяти: {GLOBAL_CONFIG}")
         global GLOBAL_CONFIG
+        logger.info(f"Загружаем конфиг из памяти: {GLOBAL_CONFIG}")
         
         # Проверяем, не истекло ли время действия режима
         if GLOBAL_CONFIG.get('mode_expires_at'):
@@ -45,8 +46,9 @@ def load_config():
             if datetime.now() > expires_at:
                 GLOBAL_CONFIG['special_mode'] = False
                 GLOBAL_CONFIG['mode_expires_at'] = None
+                logger.info("Время режима истекло, сбрасываем")
                 
-        return GLOBAL_CONFIG
+        return GLOBAL_CONFIG.copy()  # Возвращаем копию конфига
     except Exception as e:
         logger.error(f"Ошибка загрузки конфига: {e}", exc_info=True)
         return {
@@ -72,26 +74,23 @@ from bot import *
 # Настраиваем вебхук при первом запросе
 @app.before_first_request
 def set_webhook():
-    # Получаем URL из переменной окружения или используем тестовый
     WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://shaytan-web.onrender.com')
     url = f"{WEBHOOK_URL}/{TOKEN}"
     try:
-        print("Начинаем настройку вебхука...")  # Добавляем логирование
+        logger.info("Начинаем настройку вебхука...")
         bot.remove_webhook()
         bot.set_webhook(url=url)
-        print(f"Вебхук установлен на {url}")
+        logger.info(f"Вебхук установлен на {url}")
         
-        # Пробуем отправить тестовое сообщение
         try:
             bot.send_message(1228708306, f"🚀 Бот перезапущен\nWebhook URL: {url}")
-            print("Тестовое сообщение отправлено")
+            logger.info("Тестовое сообщение отправлено")
         except Exception as e:
-            print(f"Ошибка отправки тестового сообщения: {e}")
+            logger.error(f"Ошибка отправки тестового сообщения: {e}")
             
     except Exception as e:
-        print(f"Ошибка установки вебхука: {e}")
+        logger.error(f"Ошибка установки вебхука: {e}")
 
-# Обработчик вебхуков от Telegram
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -102,21 +101,17 @@ def webhook():
             
             update = telebot.types.Update.de_json(json_string)
             
-            # Добавляем логирование типа обновления
             if update.message:
                 logger.info(f"Получено сообщение: {update.message.text}")
             elif update.callback_query:
                 logger.info(f"Получен callback_query: {update.callback_query.data}")
             
-            # Обрабатываем обновление синхронно
             bot.process_new_updates([update])
             logger.info("Обновление успешно обработано")
             return 'ok', 200
             
         except Exception as e:
             logger.error("Ошибка обработки вебхука", exc_info=True)
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
             return str(e), 500
     return 'error', 403
 
@@ -142,7 +137,6 @@ def update_config():
         logger.error(f"Ошибка обновления конфига: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
-# Добавим тестовый роут
 @app.route('/test')
 def test():
     try:
@@ -152,22 +146,6 @@ def test():
         logger.error(f"Ошибка теста: {e}", exc_info=True)
         return str(e), 500
 
-# Добавим новый роут для проверки вебхука
-@app.route('/check_webhook')
-def check_webhook():
-    try:
-        webhook_info = bot.get_webhook_info()
-        return jsonify({
-            "webhook_url": webhook_info.url,
-            "has_custom_certificate": webhook_info.has_custom_certificate,
-            "pending_update_count": webhook_info.pending_update_count,
-            "last_error_date": webhook_info.last_error_date,
-            "last_error_message": webhook_info.last_error_message
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Обновим тестовый роут
 @app.route('/test_special')
 def test_special():
     try:
@@ -183,7 +161,7 @@ def test_special():
                 "status": "success",
                 "message": "Режим свои включен на 5 минут",
                 "expires_at": expires_at.isoformat(),
-                "config": load_config()  # Перезагружаем конфиг для проверки
+                "config": load_config()
             })
         else:
             return jsonify({"status": "error", "message": "Failed to save config"}), 500
