@@ -475,6 +475,10 @@
             background-color: #ffc107;  /* Желтый круг с номером */
             color: #2d2d2d;  /* Темный текст для контраста */
         }
+
+        .special-mode-banner {
+            display: none !important; /* Принудительно скрываем плашку */
+        }
     </style>
 </head>
 <body>
@@ -625,6 +629,11 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="specialMode" style="display: none;" class="special-mode-banner">
+        <span>🎲 Режим "свои" активен!</span>
+        <span id="specialModeTimer"></span>
     </div>
 
     <script>
@@ -798,12 +807,24 @@
                 const response = await fetch('/config.json');
                 const config = await response.json();
                 console.log('Текущая конфигурация:', config);
-                return config.special_mode;
+                
+                if (config.special_mode && config.mode_expires_at) {
+                    const expiresAt = new Date(config.mode_expires_at + 'Z');
+                    const now = new Date();
+                    
+                    if (now < expiresAt) {
+                        return true;
+                    }
+                }
+                return false;
             } catch (error) {
                 console.error('Ошибка при проверке режима:', error);
                 return false;
             }
         }
+
+        // Вернем периодическую проверку режима
+        setInterval(checkSpecialMode, 5000);
 
         // Обновим обработчик кнопки случайного выбора
         randomButton.addEventListener('click', async function() {
