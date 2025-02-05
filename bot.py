@@ -8,6 +8,9 @@ from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
 import logging
 import sys
+from flask import jsonify
+import threading
+import requests
 
 # Настраиваем логирование
 logging.basicConfig(
@@ -269,7 +272,24 @@ def handle_student_number(message):
         if message.chat.id in waiting_for_number:
             del waiting_for_number[message.chat.id]
 
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
+def keepalive():
+    while True:
+        try:
+            response = requests.get('https://shaytan-web.onrender.com/health')
+            print(f"Keepalive ping: {response.status_code}")
+        except Exception as e:
+            print(f"Keepalive error: {e}")
+        time.sleep(60)  # пинг каждую минуту
+
 # Запускаем бота
 if __name__ == '__main__':
+    # Запускаем keepalive в отдельном потоке
+    keepalive_thread = threading.Thread(target=keepalive, daemon=True)
+    keepalive_thread.start()
+    
     print("Бот запущен...")
     # Убираем bot.infinity_polling(), так как бот будет запускаться из server.py
