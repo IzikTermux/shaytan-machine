@@ -6,6 +6,7 @@ import telebot
 import logging
 import sys
 from datetime import datetime, timedelta
+import tempfile
 
 # Настройка логирования
 logging.basicConfig(
@@ -16,22 +17,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Изменим функции работы с конфигурацией
-CONFIG_FILE = 'config.json'
+CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'config.json')
 
 def load_config():
     try:
+        logger.info(f"Загружаем конфиг из {CONFIG_FILE}")
         if not os.path.exists(CONFIG_FILE):
+            logger.info("Файл конфига не существует, создаем новый")
             default_config = {
                 "special_mode": False,
                 "special_students": {},
                 "mode_expires_at": None,
                 "salted_student": None
             }
-            save_config(default_config)
-            return default_config
+            if save_config(default_config):
+                return default_config
+            else:
+                raise Exception("Не удалось создать конфиг")
             
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
+            logger.info(f"Загружен конфиг: {config}")
             
         # Проверяем, не истекло ли время действия режима
         if config.get('mode_expires_at'):
@@ -53,13 +59,22 @@ def load_config():
 
 def save_config(config):
     try:
-        # Создаем директорию, если её нет
-        os.makedirs(os.path.dirname(CONFIG_FILE) or '.', exist_ok=True)
-        
+        logger.info(f"Сохраняем конфиг в {CONFIG_FILE}")
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=4)
         logger.info(f"Конфиг сохранен: {config}")
-        return True
+        
+        # Проверяем, что файл создался
+        if os.path.exists(CONFIG_FILE):
+            logger.info(f"Файл конфига существует, размер: {os.path.getsize(CONFIG_FILE)}")
+            with open(CONFIG_FILE, 'r') as f:
+                saved_config = json.load(f)
+            logger.info(f"Прочитанный конфиг: {saved_config}")
+            return True
+        else:
+            logger.error("Файл конфига не создался")
+            return False
+            
     except Exception as e:
         logger.error(f"Ошибка сохранения конфига: {e}", exc_info=True)
         return False
@@ -202,16 +217,16 @@ def test_special():
 @app.before_first_request
 def check_permissions():
     try:
-        # Проверяем права на запись
-        test_file = 'test_write.tmp'
+        logger.info(f"Временная директория: {tempfile.gettempdir()}")
+        logger.info(f"Текущая директория: {os.getcwd()}")
+        logger.info(f"Содержимое текущей директории: {os.listdir()}")
+        
+        # Проверяем права на запись во временную директорию
+        test_file = os.path.join(tempfile.gettempdir(), 'test_write.tmp')
         with open(test_file, 'w') as f:
             f.write('test')
         os.remove(test_file)
-        logger.info("Права на запись есть")
-        
-        # Проверяем текущую директорию
-        logger.info(f"Текущая директория: {os.getcwd()}")
-        logger.info(f"Содержимое директории: {os.listdir()}")
+        logger.info("Права на запись во временную директорию есть")
         
     except Exception as e:
         logger.error(f"Проблема с правами доступа: {e}", exc_info=True)
