@@ -5,7 +5,7 @@ import os
 import telebot
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import tempfile
 
 # Настройка логирования
@@ -186,6 +186,78 @@ def check_permissions():
         
     except Exception as e:
         logger.error(f"Проблема с правами доступа: {e}", exc_info=True)
+
+# Обновим функцию для работы с временем
+def get_moscow_time():
+    # Москва UTC+3
+    moscow_tz = timezone(timedelta(hours=3))
+    return datetime.now(moscow_tz)
+
+# Обновим обработчик callback_query
+@bot.callback_query_handler(func=lambda call: call.data.startswith('special_'))
+def handle_special_mode(call):
+    logger.info(f"Обработка callback_query: {call.data}")
+    try:
+        config = load_config()
+        
+        if call.data == "special_off":
+            logger.info("Выключение режима свои")
+            config['special_mode'] = False
+            config['mode_expires_at'] = None
+            if save_config(config):
+                bot.answer_callback_query(call.id, "Режим свои выключен ❌")
+                bot.edit_message_text("Режим свои выключен ❌", 
+                                    call.message.chat.id, 
+                                    call.message.message_id)
+            else:
+                raise Exception("Не удалось сохранить конфиг")
+            return
+
+        minutes = int(call.data.split('_')[1])
+        logger.info(f"Включение режима свои на {minutes} минут")
+        
+        # Используем московское время
+        now = get_moscow_time()
+        expires_at = now + timedelta(minutes=minutes)
+        
+        config['special_mode'] = True
+        config['mode_expires_at'] = expires_at.isoformat()
+        
+        if save_config(config):
+            bot.answer_callback_query(call.id, f"Режим свои включен на {minutes} минут ✅")
+            bot.edit_message_text(
+                f"Режим свои включен на {minutes} минут ✅\n" +
+                f"Действует до: {expires_at.strftime('%H:%M:%S (МСК)')}", 
+                call.message.chat.id, 
+                call.message.message_id
+            )
+            logger.info("Режим свои успешно включен")
+        else:
+            raise Exception("Не удалось сохранить конфиг")
+            
+    except Exception as e:
+        logger.error(f"Ошибка в обработке callback_query: {e}", exc_info=True)
+        try:
+            bot.answer_callback_query(call.id, "Произошла ошибка ❌")
+        except:
+            pass
+
+# Обновим функцию проверки статуса
+@bot.message_handler(commands=['status'])
+def check_status(message):
+    config = load_config()
+    if config['special_mode']:
+        expires_at = datetime.fromisoformat(config['mode_expires_at'])
+        now = get_moscow_time()
+        remaining = expires_at - now
+        minutes = remaining.seconds // 60
+        seconds = remaining.seconds % 60
+        bot.reply_to(message, 
+                    f"✅ Режим свои включен\n" +
+                    f"Осталось: {minutes}:{seconds:02d}\n" +
+                    f"Действует до: {expires_at.strftime('%H:%M:%S (МСК)')}")
+    else:
+        bot.reply_to(message, "❌ Режим свои выключен")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
