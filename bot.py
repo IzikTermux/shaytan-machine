@@ -158,8 +158,10 @@ def handle_special_mode(call):
         
         expires_at = datetime.now() + timedelta(minutes=minutes)
         
+        # Сбрасываем режим "насолить" при включении режима "свои"
         config['special_mode'] = True
         config['mode_expires_at'] = expires_at.isoformat()
+        config['salted_student'] = None  # Сбрасываем насоленного ученика
         save_config(config)
         
         bot.answer_callback_query(call.id, f"Режим свои включен на {minutes} минут ✅")
@@ -240,16 +242,11 @@ def handle_student_number(message):
         
         print(f"Номер {number} найден, обновляем конфиг")  # Отладка
         config = load_config()
-        # Сохраняем текущие настройки режима "свои"
-        special_mode = config.get('special_mode', False)
-        mode_expires_at = config.get('mode_expires_at', None)
         
-        # Обновляем только поле salted_student
+        # Отключаем режим "свои" при включении режима "насолить"
+        config['special_mode'] = False
+        config['mode_expires_at'] = None
         config['salted_student'] = number
-        
-        # Восстанавливаем настройки режима "свои"
-        config['special_mode'] = special_mode
-        config['mode_expires_at'] = mode_expires_at
         
         save_config(config)
         
