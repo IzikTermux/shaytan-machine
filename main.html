@@ -792,7 +792,20 @@
             }, 50);
         }
 
-        // Обновите обработчик кнопки случайного выбора
+        // Добавим после функции animateText()
+        async function checkSpecialMode() {
+            try {
+                const response = await fetch('/config.json');
+                const config = await response.json();
+                console.log('Текущая конфигурация:', config);
+                return config.special_mode;
+            } catch (error) {
+                console.error('Ошибка при проверке режима:', error);
+                return false;
+            }
+        }
+
+        // Обновим обработчик кнопки случайного выбора
         randomButton.addEventListener('click', async function() {
             const students = document.querySelectorAll('.student-item:not(.absent)');
             const availableStudents = Array.from(students).filter(student => {
@@ -813,8 +826,10 @@
                 return;
             }
 
+            let finalStudents = availableStudents;
+
             // Проверяем наличие "насоленного" ученика
-            const config = await fetch('config.json').then(r => r.json());
+            const config = await fetch('/config.json').then(r => r.json());
             if (config.salted_student) {
                 // Ищем насоленного ученика среди доступных
                 const saltedStudent = availableStudents.find(student => 
@@ -822,37 +837,15 @@
                 );
                 
                 if (saltedStudent) {
-                    // Сбрасываем метку насоленного ученика
-                    config.salted_student = null;
-                    await fetch('/update_config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(config)
-                    });
-                    
-                    // Выбираем насоленного ученика
-                    const number = saltedStudent.querySelector('.student-number').textContent;
-                    const name = saltedStudent.querySelector('.student-name').textContent;
-                    const surname = saltedStudent.querySelector('.student-surname').textContent;
-                    
-                    selectedStudents.add(number);
-                    saltedStudent.classList.add('selected');
-                    
-                    animateText(`${name} ${surname}`);
-                    return;
+                    console.log('Найден насоленный ученик:', config.salted_student);
+                    finalStudents = [saltedStudent];
                 }
-            }
-
-            // Проверяем специальный режим
-            const isSpecialMode = await checkSpecialMode();
-            
-            // Список номеров учеников для исключения
-            const excludedNumbers = ["11", "15", "25", "9"];
-            
-            // Фильтруем доступных учеников
-            let finalStudents = availableStudents;
-            if (isSpecialMode) {
-                console.log('Режим свои активен, исключаем учеников:', excludedNumbers);
+            } else if (config.special_mode) {
+                // Получаем номера исключенных учеников
+                const excludedNumbers = Array.from(document.querySelectorAll('.excluded-item'))
+                    .map(item => item.getAttribute('data-number'));
+                
+                // Фильтруем доступных учеников
                 finalStudents = availableStudents.filter(student => {
                     const number = student.querySelector('.student-number').textContent;
                     const isExcluded = excludedNumbers.includes(number);
