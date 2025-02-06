@@ -7,6 +7,9 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 import tempfile
+import threading
+import time
+import requests
 
 # Настройка логирования
 logging.basicConfig(
@@ -261,6 +264,24 @@ def check_status(message):
                     f"Действует до: {expires_at.strftime('%H:%M:%S (МСК)')}")
     else:
         bot.reply_to(message, "❌ Режим свои выключен")
+
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
+def keepalive():
+    while True:
+        try:
+            # Пингуем наш сервер каждые 10 минут
+            response = requests.get('https://shaytan-web.onrender.com/health')
+            print(f"Keepalive ping: {response.status_code}")
+        except Exception as e:
+            print(f"Keepalive error: {e}")
+        time.sleep(600)  # 10 минут
+
+# Запускаем keepalive в отдельном потоке
+keepalive_thread = threading.Thread(target=keepalive, daemon=True)
+keepalive_thread.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
